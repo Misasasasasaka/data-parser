@@ -1,16 +1,18 @@
 
 
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { RecordData } from './types';
 
 declare const XLSX: any; // Declare XLSX from CDN
 
 // --- Constants ---
-const TABLE_HEADERS = ['编号', '哈弗币(M)', '段位', '等级', '保险', '体力', '负重', 'AWM', '6头', '6甲', '特殊皮肤', 'KD', '租金', '押金', '合计', '租期（天）', '上号方式', '比例', '', '备注'];
+const TABLE_HEADERS = ['编号', '哈弗币(M)', '段位', '等级', '保险', '体力', '负重', 'AWM', '6头', '6甲', '特殊皮肤', 'KD', '租金', '押金', '合计', '租期（天）', '上号方式', '比例', '', '备注', '联系电话'];
 
 const KEY_MAP: Record<string, string> = {
   '编号': '编号',
   '哈弗币': '哈弗币(M)',
+  '哈夫币': '哈弗币(M)',
   '段位': '段位',
   '等级': '等级',
   '保险格数': '保险',
@@ -20,10 +22,12 @@ const KEY_MAP: Record<string, string> = {
   '6头': '6头',
   '6甲': '6甲',
   '皮肤': '特殊皮肤',
-  '特殊皮肤': '特殊皮膚',
+  '特殊皮膚': '特殊皮肤',
   '绝密KD': 'KD',
   '押金': '押金',
   '上号方式': '上号方式',
+  '号主在线时间': '备注',
+  '联系电话': '联系电话',
 };
 
 // --- SVG Icons (defined outside components) ---
@@ -159,6 +163,8 @@ AWM：...
 绝密KD：...
 押金：...
 上号方式：...
+号主在线时间：...
+联系电话：...
 
 (You can paste multiple records. Each record must start with '编号'.)`}
       className="w-full h-60 p-3 bg-slate-900 border border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 text-slate-200 placeholder-slate-500 font-mono text-sm"
@@ -240,7 +246,7 @@ const getHeaderStyles = (header: string): string => {
         return `${baseStyle} bg-slate-600`;
     }
 
-    const blueBgWhiteText = ['编号', '哈弗币(M)', '段位', '等级', '6头', '6甲', '特殊皮肤', 'KD', '租金', '押金', '租期（天）', '上号方式', '备注'];
+    const blueBgWhiteText = ['编号', '哈弗币(M)', '段位', '等级', '6头', '6甲', '特殊皮肤', 'KD', '租金', '押金', '租期（天）', '上号方式', '备注', '联系电话'];
     const grayBgRedText = ['保险', '体力', '负重'];
     const grayBgBlackText = ['AWM', '合计'];
     const blueBgGreenText = ['比例'];
@@ -557,7 +563,8 @@ function App() {
             styles.whiteOnBlue, // Q
             styles.greenOnBlue, // R
             styles.blank,       // S
-            styles.whiteOnBlue  // T
+            styles.whiteOnBlue, // T
+            styles.whiteOnBlue, // U
         ];
 
         // --- Apply Styles and Formatting ---
