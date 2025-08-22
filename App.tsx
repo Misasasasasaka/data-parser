@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { RecordData } from './types';
 
@@ -19,7 +20,7 @@ const KEY_MAP: Record<string, string> = {
   '6头': '6头',
   '6甲': '6甲',
   '皮肤': '特殊皮肤',
-  '特殊皮肤': '特殊皮肤',
+  '特殊皮肤': '特殊皮膚',
   '绝密KD': 'KD',
   '押金': '押金',
   '上号方式': '上号方式',
@@ -49,6 +50,71 @@ const UploadIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
     </svg>
 );
+
+// --- Editable Cell Component ---
+interface EditableCellProps {
+    value: string;
+    onUpdate: (newValue: string) => void;
+}
+
+const EditableCell: React.FC<EditableCellProps> = ({ value, onUpdate }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentValue, setCurrentValue] = useState(value);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isEditing) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isEditing]);
+    
+    useEffect(() => {
+        setCurrentValue(value);
+    }, [value]);
+
+    const handleBlur = () => {
+        if (currentValue !== value) {
+            onUpdate(currentValue);
+        }
+        setIsEditing(false);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleBlur();
+        } else if (e.key === 'Escape') {
+            setCurrentValue(value);
+            setIsEditing(false);
+        }
+    };
+
+    const handleDoubleClick = () => {
+        if (!isEditing) {
+            setIsEditing(true);
+        }
+    };
+    
+    if (isEditing) {
+        return (
+            <input
+                ref={inputRef}
+                type="text"
+                value={currentValue || ''}
+                onChange={(e) => setCurrentValue(e.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                className="w-full p-1 bg-slate-600 border border-blue-500 rounded outline-none text-slate-100"
+            />
+        );
+    }
+
+    return (
+        <div onDoubleClick={handleDoubleClick} className="min-h-[24px] cursor-pointer px-1 -mx-1 py-1 -my-1 rounded hover:bg-slate-700/50 transition-colors" title="Double-click to edit">
+            {value || '-'}
+        </div>
+    );
+};
 
 
 // --- UI Components ---
@@ -163,6 +229,7 @@ interface DataTableProps {
     records: RecordData[];
     headers: string[];
     onDeleteRecord: (index: number) => void;
+    onUpdateRecord: (rowIndex: number, header: string, value: string) => void;
 }
 
 const getHeaderStyles = (header: string): string => {
@@ -194,7 +261,7 @@ const getHeaderStyles = (header: string): string => {
     return '';
 };
 
-const DataTable: React.FC<DataTableProps> = ({ records, headers, onDeleteRecord }) => {
+const DataTable: React.FC<DataTableProps> = ({ records, headers, onDeleteRecord, onUpdateRecord }) => {
     if (records.length === 0) {
         return (
             <div className="text-center py-10 bg-slate-800 rounded-lg shadow-inner">
@@ -221,7 +288,14 @@ const DataTable: React.FC<DataTableProps> = ({ records, headers, onDeleteRecord 
                         <tr key={index} className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors duration-150">
                             {headers.map(header => (
                                 <td key={`${index}-${header}`} className="px-6 py-4 whitespace-nowrap">
-                                    {record[header] || '-'}
+                                    {header === '' ? (
+                                        '-'
+                                    ) : (
+                                        <EditableCell
+                                            value={record[header]}
+                                            onUpdate={(newValue) => onUpdateRecord(index, header, newValue)}
+                                        />
+                                    )}
                                 </td>
                             ))}
                              <td className="px-6 py-4 text-center">
@@ -557,6 +631,15 @@ function App() {
       setIsAddModalOpen(false);
   };
 
+  const handleUpdateRecord = (rowIndex: number, header: string, value: string) => {
+    setRecords(prevRecords => {
+      const newRecords = [...prevRecords];
+      const updatedRecord = { ...newRecords[rowIndex], [header]: value };
+      newRecords[rowIndex] = updatedRecord;
+      return newRecords;
+    });
+  };
+
   const clearAllData = useCallback(() => {
     setRecords([]);
   }, []);
@@ -578,7 +661,12 @@ function App() {
             onImport={triggerFileImport}
             onAdd={() => setIsAddModalOpen(true)}
         />
-        <DataTable records={records} headers={headers} onDeleteRecord={handleDeleteRecord} />
+        <DataTable 
+            records={records} 
+            headers={headers} 
+            onDeleteRecord={handleDeleteRecord}
+            onUpdateRecord={handleUpdateRecord} 
+        />
         <AddRecordModal 
             isOpen={isAddModalOpen}
             onClose={() => setIsAddModalOpen(false)}
