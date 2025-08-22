@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { RecordData } from './types';
 
@@ -19,6 +16,8 @@ const KEY_MAP: Record<string, string> = {
   '体力': '体力',
   '负重': '负重',
   'AWM': 'AWM',
+  'AWM子弹': 'AWM',
+  '子弹': 'AWM',
   '6头': '6头',
   '6甲': '6甲',
   '皮肤': '特殊皮肤',
@@ -478,10 +477,10 @@ function App() {
         
         const lines = chunk.trim().split('\n');
         lines.forEach(line => {
-          const parts = line.split(/[:：]/, 2);
-          if (parts.length === 2) {
-            const rawKey = parts[0].trim();
-            const value = parts[1].trim();
+          const delimiterIndex = line.search(/[:：]/);
+          if (delimiterIndex !== -1) {
+            const rawKey = line.substring(0, delimiterIndex).trim();
+            const value = line.substring(delimiterIndex + 1).trim();
             const mappedKey = KEY_MAP[rawKey];
             if(mappedKey && mappedKey in record) {
                 record[mappedKey] = value;
