@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Data Parser & Exporter",
+  "description": "A web application that allows users to paste structured text data, parses it into a table, and provides an option to download the data as an Excel spreadsheet.",
+  "requestFramePermissions": []
+}
