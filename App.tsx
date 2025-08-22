@@ -1,9 +1,29 @@
 
-
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { RecordData } from './types';
 
 declare const XLSX: any; // Declare XLSX from CDN
+
+// --- Constants ---
+const TABLE_HEADERS = ['编号', '哈弗币(M)', '段位', '等级', '保险', '体力', '负重', 'AWM', '6头', '6甲', '特殊皮肤', 'KD', '租金', '押金', '合计', '租期（天）', '上号方式', '比例', '', '备注'];
+
+const KEY_MAP: Record<string, string> = {
+  '编号': '编号',
+  '哈弗币': '哈弗币(M)',
+  '段位': '段位',
+  '等级': '等级',
+  '保险格数': '保险',
+  '体力': '体力',
+  '负重': '负重',
+  'AWM': 'AWM',
+  '6头': '6头',
+  '6甲': '6甲',
+  '皮肤': '特殊皮肤',
+  '特殊皮肤': '特殊皮肤',
+  '绝密KD': 'KD',
+  '押金': '押金',
+  '上号方式': '上号方式',
+};
 
 // --- SVG Icons (defined outside components) ---
 const DownloadIcon = () => (
@@ -58,14 +78,23 @@ const InputSection: React.FC<InputSectionProps> = ({ inputText, setInputText, on
       id="data-input"
       value={inputText}
       onChange={(e) => setInputText(e.target.value)}
-      placeholder={`Example:
-编号：1818781769481982541
-段位：黑鹰
-...
-号主在线时间:上午9点~下午10:30
-联系电话:13330779331
+      placeholder={`Example format:
+编号：...
+哈弗币：...
+段位：...
+等级：...
+保险格数：...
+体力：...
+负重：...
+AWM：...
+6头：...
+6甲：...
+皮肤：...
+绝密KD：...
+押金：...
+上号方式：...
 
-(Handles both full-width '：' and half-width ':')`}
+(You can paste multiple records. Each record must start with '编号'.)`}
       className="w-full h-60 p-3 bg-slate-900 border border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 text-slate-200 placeholder-slate-500 font-mono text-sm"
       aria-label="Data input text area"
     />
@@ -136,6 +165,35 @@ interface DataTableProps {
     onDeleteRecord: (index: number) => void;
 }
 
+const getHeaderStyles = (header: string): string => {
+    // font-family: 'SimHei' is for '黑体'. Text size 16px is text-base in tailwind.
+    const baseStyle = "font-['SimHei'] text-base font-bold";
+
+    if (header === '') {
+        return `${baseStyle} bg-slate-600`;
+    }
+
+    const blueBgWhiteText = ['编号', '哈弗币(M)', '段位', '等级', '6头', '6甲', '特殊皮肤', 'KD', '租金', '押金', '租期（天）', '上号方式', '备注'];
+    const grayBgRedText = ['保险', '体力', '负重'];
+    const grayBgBlackText = ['AWM', '合计'];
+    const blueBgGreenText = ['比例'];
+
+    if (blueBgWhiteText.includes(header)) {
+        return `${baseStyle} bg-blue-600 text-white`;
+    }
+    if (grayBgRedText.includes(header)) {
+        return `${baseStyle} bg-slate-400 text-red-600`;
+    }
+    if (grayBgBlackText.includes(header)) {
+        return `${baseStyle} bg-slate-400 text-black`;
+    }
+    if (blueBgGreenText.includes(header)) {
+        return `${baseStyle} bg-blue-600 text-green-400`;
+    }
+    // This function is only for data headers, Actions header is styled separately.
+    return '';
+};
+
 const DataTable: React.FC<DataTableProps> = ({ records, headers, onDeleteRecord }) => {
     if (records.length === 0) {
         return (
@@ -148,14 +206,14 @@ const DataTable: React.FC<DataTableProps> = ({ records, headers, onDeleteRecord 
     return (
         <div className="overflow-x-auto bg-slate-800 rounded-lg shadow-lg">
             <table className="min-w-full text-sm text-left text-slate-300">
-                <thead className="text-xs text-slate-300 uppercase bg-slate-700/50">
+                <thead>
                     <tr>
                         {headers.map(header => (
-                            <th key={header} scope="col" className="px-6 py-3 whitespace-nowrap">
+                            <th key={header} scope="col" className={`px-6 py-3 whitespace-nowrap text-center ${getHeaderStyles(header)}`}>
                                 {header}
                             </th>
                         ))}
-                        <th scope="col" className="px-6 py-3 text-center">Actions</th>
+                        <th scope="col" className="px-6 py-3 text-center text-xs text-slate-300 uppercase bg-slate-700">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -257,13 +315,14 @@ const AddRecordModal: React.FC<AddRecordModalProps> = ({ isOpen, onClose, onSubm
                         {headers.length > 0 ? (
                             headers.map(header => (
                                 <div key={header}>
-                                    <label htmlFor={header} className="block text-sm font-medium text-slate-300 mb-1">{header}</label>
+                                    <label htmlFor={header} className="block text-sm font-medium text-slate-300 mb-1">{header || 'Separator'}</label>
                                     <input
                                         type="text"
                                         id={header}
                                         name={header}
                                         onChange={handleFormChange}
                                         className="w-full p-2 bg-slate-900 border border-slate-700 rounded-md focus:ring-2 focus:ring-indigo-500"
+                                        disabled={header === ''}
                                     />
                                 </div>
                             ))
@@ -317,16 +376,8 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const headers = useMemo(() => {
-    const allKeys = new Set<string>();
-    records.forEach(record => {
-        Object.keys(record).forEach(key => allKeys.add(key));
-    });
-    const orderedKeys = Array.from(allKeys);
-    if(orderedKeys.includes('编号')) {
-        return ['编号', ...orderedKeys.filter(k => k !== '编号')];
-    }
-    return orderedKeys;
-  }, [records]);
+    return TABLE_HEADERS;
+  }, []);
 
 
   const parseAndAddData = useCallback(() => {
@@ -337,20 +388,24 @@ function App() {
     }
 
     try {
-      const chunks = inputText.trim().split(/^(?=编号：)/m).filter(chunk => chunk.trim() !== '');
+      const chunks = inputText.trim().split(/^(?=编号[:：])/m).filter(chunk => chunk.trim() !== '');
       if (chunks.length === 0) {
           throw new Error("No valid records found. Each record must start with '编号：'.");
       }
 
       const newRecords: RecordData[] = chunks.map(chunk => {
-        const record: RecordData = {};
+        const record: RecordData = TABLE_HEADERS.reduce((acc, header) => ({ ...acc, [header]: '' }), {} as RecordData);
+        
         const lines = chunk.trim().split('\n');
         lines.forEach(line => {
           const parts = line.split(/[:：]/, 2);
           if (parts.length === 2) {
-            const key = parts[0].trim();
+            const rawKey = parts[0].trim();
             const value = parts[1].trim();
-            if(key) record[key] = value;
+            const mappedKey = KEY_MAP[rawKey];
+            if(mappedKey && mappedKey in record) {
+                record[mappedKey] = value;
+            }
           }
         });
         return record;
@@ -366,7 +421,94 @@ function App() {
   const exportToExcel = useCallback(() => {
     if (records.length === 0) return;
     try {
-        const worksheet = XLSX.utils.json_to_sheet(records);
+        // Manually construct the data for the worksheet in an array-of-arrays format.
+        // This gives us direct control over the data and ensures styles are applied correctly.
+        const dataForSheet = [
+            headers,
+            ...records.map(record => headers.map(header => record[header] || ''))
+        ];
+        
+        // Create the worksheet from our array-of-arrays data.
+        const worksheet = XLSX.utils.aoa_to_sheet(dataForSheet);
+
+        // --- Define Cell Styles ---
+        const baseFont = { name: 'SimHei', sz: 16, bold: true };
+        const baseAlignment = { vertical: "center", horizontal: "center", wrapText: true };
+
+        const styles = {
+            whiteOnBlue: {
+                font: { ...baseFont, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "4F81BD" }, patternType: "solid" },
+                alignment: baseAlignment
+            },
+            redOnGray: {
+                font: { ...baseFont, color: { rgb: "FF0000" } },
+                fill: { fgColor: { rgb: "D9D9D9" }, patternType: "solid" },
+                alignment: baseAlignment
+            },
+            blackOnGray: {
+                font: { ...baseFont, color: { rgb: "000000" } },
+                fill: { fgColor: { rgb: "D9D9D9" }, patternType: "solid" },
+                alignment: baseAlignment
+            },
+            greenOnBlue: {
+                font: { ...baseFont, color: { rgb: "00B050" } },
+                fill: { fgColor: { rgb: "4F81BD" }, patternType: "solid" },
+                alignment: baseAlignment
+            },
+            blank: {
+                fill: { fgColor: { rgb: "FFFFFF" }, patternType: "solid" },
+                alignment: baseAlignment
+            }
+        };
+
+        // Map the styles to each header column by its position (A=0, B=1, etc.)
+        const headerStyles = [
+            styles.whiteOnBlue, // A
+            styles.whiteOnBlue, // B
+            styles.whiteOnBlue, // C
+            styles.whiteOnBlue, // D
+            styles.redOnGray,   // E
+            styles.redOnGray,   // F
+            styles.redOnGray,   // G
+            styles.blackOnGray, // H
+            styles.whiteOnBlue, // I
+            styles.whiteOnBlue, // J
+            styles.whiteOnBlue, // K
+            styles.whiteOnBlue, // L
+            styles.whiteOnBlue, // M
+            styles.whiteOnBlue, // N
+            styles.blackOnGray, // O
+            styles.whiteOnBlue, // P
+            styles.whiteOnBlue, // Q
+            styles.greenOnBlue, // R
+            styles.blank,       // S
+            styles.whiteOnBlue  // T
+        ];
+
+        // --- Apply Styles and Formatting ---
+
+        // Loop through the headers to apply styles to the first row of the worksheet.
+        if (worksheet['!ref']) { // Check if sheet is not empty
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                if (C >= headerStyles.length) continue;
+                const address = XLSX.utils.encode_cell({ c: C, r: 0 }); // r: 0 is the first row
+                if (worksheet[address]) {
+                    worksheet[address].s = headerStyles[C];
+                }
+            }
+        }
+        
+        // Set column widths for better readability.
+        const colWidths = headers.map(header => ({ wch: header.length > 0 ? Math.max(15, header.length * 1.2) : 5 }));
+        worksheet['!cols'] = colWidths;
+        
+        // Set the height of the header row.
+        worksheet['!rows'] = worksheet['!rows'] || [];
+        worksheet['!rows'][0] = { hpx: 30 };
+
+        // --- Generate and Download Excel File ---
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Parsed Data");
         XLSX.writeFile(workbook, "parsed_data_export.xlsx");
@@ -374,7 +516,8 @@ function App() {
         setError("Failed to export data to Excel.");
         console.error(e);
     }
-  }, [records]);
+  }, [records, headers]);
+
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -400,7 +543,6 @@ function App() {
     };
     reader.readAsArrayBuffer(file);
 
-    // Reset file input value to allow re-uploading the same file
     if(event.target) event.target.value = '';
   };
   
